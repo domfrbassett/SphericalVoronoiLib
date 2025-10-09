@@ -6,3 +6,4 @@ C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\netstandard2.0\
 C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\netstandard2.0\SphericalVoronoiLib.csproj.CoreCompileInputs.cache
 C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\netstandard2.0\SphericalVoronoiLib.dll
 C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\netstandard2.0\SphericalVoronoiLib.pdb
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\netstandard2.0\SphericalVoronoiLib.sourcelink.json

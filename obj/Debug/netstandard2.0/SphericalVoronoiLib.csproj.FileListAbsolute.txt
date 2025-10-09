@@ -6,3 +6,4 @@ C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\bin\Debug\netstandard2.0\Sp
 C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\bin\Debug\netstandard2.0\SphericalVoronoiLib.pdb
 C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Debug\netstandard2.0\SphericalVoronoiLib.dll
 C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Debug\netstandard2.0\SphericalVoronoiLib.pdb
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Debug\netstandard2.0\SphericalVoronoiLib.sourcelink.json
