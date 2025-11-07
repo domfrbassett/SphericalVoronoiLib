@@ -6,7 +6,7 @@
 
 * [54] M. Mein, Perception de l'information binaurale liée aux réflexions précoces dans une salle. Application à la simulation de la qualité acoustique, mémoire de DEA, Université du Maine, Le Mans, septembre 1993.
 
-If anyone has access to the Mein (1993) paper, please get in touch. It would be good to find out if they actually proposed a weighting system.
+If anyone has access to the Mein (1993) paper, please get in touch. The university itself does not and are equally interested. It would be good to find out if they actually proposed a weighting system.
 
 <img src="https://github.com/user-attachments/assets/71445dbc-008a-4846-9bbf-251517b538d5" width="700" />
 
