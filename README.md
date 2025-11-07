@@ -34,7 +34,7 @@ If anyone has access to the Mein (1993) paper, please get in touch. The universi
 ## Attribution
 
 Algorithm based on **Bruno Luong’s** MATLAB function
-[`voronoisphere.m`](https://www.mathworks.com/matlabcentral/fileexchange/74777-voronoisphere).
+[`voronoisphere.m`]([https://uk.mathworks.com/matlabcentral/fileexchange/40989-voronoi-sphere/]).
 This repository contains an independent C# re-implementation.
 
 ---
