@@ -10,7 +10,7 @@ If anyone has access to the Mein (1993) paper, please get in touch. The universi
 
 <img src="https://github.com/user-attachments/assets/71445dbc-008a-4846-9bbf-251517b538d5" width="700" />
 
-Above: this equiangular sampling scheme is now roughly equal-area in terms of the contribution of each source to the Diffuse Field Average.
+* Above: this equiangular sampling scheme is now roughly equal-area in terms of the contribution of each source to the Diffuse Field Average.
 ---
 
 ## Overview
