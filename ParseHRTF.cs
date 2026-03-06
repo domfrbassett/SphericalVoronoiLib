@@ -5,7 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
-namespace SphericalVoronoi
+namespace SphericalVoronoiLib
 {
     public class SOFAReader
     {

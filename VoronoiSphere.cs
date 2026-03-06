@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SphericalVoronoi
+namespace SphericalVoronoiLib
 {
     public class SphericalPoint : IVertex
     {

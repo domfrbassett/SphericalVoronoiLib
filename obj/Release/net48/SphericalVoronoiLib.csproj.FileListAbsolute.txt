@@ -1,0 +1,11 @@
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\bin\Release\net48\SphericalVoronoiLib.dll
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\bin\Release\net48\SphericalVoronoiLib.pdb
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\bin\Release\net48\HDF.PInvoke.1.10.dll
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\bin\Release\net48\MIConvexHull.dll
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\net48\SphericalVoronoiLib.csproj.AssemblyReference.cache
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\net48\SphericalVoronoiLib.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\net48\SphericalVoronoiLib.csproj.CoreCompileInputs.cache
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\net48\SphericalVoronoiLib.sourcelink.json
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\net48\Spherica.87A5C50A.Up2Date
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\net48\SphericalVoronoiLib.dll
+C:\Users\Dom\SphericalVoronoiLib\SphericalVoronoiLib\obj\Release\net48\SphericalVoronoiLib.pdb

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 
-namespace SphericalVoronoi
+namespace SphericalVoronoiLib
 {
     public class VoronoiResult
     {
@@ -13,7 +13,7 @@ namespace SphericalVoronoi
     }
     public static class SphericalVoronoiProcessor
     {
-        public static VoronoiResult ComputeFromSofa(string sofaFilePath, bool correctBottomRow = true)
+        public static VoronoiResult ComputeFromSofa(string sofaFilePath, bool correctPolarRows = true)
         {
             if (string.IsNullOrEmpty(sofaFilePath) || !File.Exists(sofaFilePath))
                 throw new FileNotFoundException("Invalid or missing SOFA file path.", sofaFilePath);
@@ -21,9 +21,9 @@ namespace SphericalVoronoi
             string positionType;
             double[,] cartesianPositions = SOFAReader.ReadSourcePosition(sofaFilePath, out positionType);
 
-            return ComputeFromArray(cartesianPositions, correctBottomRow);
+            return ComputeFromArray(cartesianPositions, correctPolarRows);
         }
-        public static VoronoiResult ComputeFromArray(double[,] cartesianPositions, bool correctBottomRow = true)
+        public static VoronoiResult ComputeFromArray(double[,] cartesianPositions, bool correctPolarRows = true)
         {
             if (cartesianPositions == null || cartesianPositions.GetLength(0) == 0)
                 throw new ArgumentException("Input array is null or empty.", nameof(cartesianPositions));
@@ -51,8 +51,8 @@ namespace SphericalVoronoi
                 pointArray[i, 2] = points[i].Z;
             }
 
-            double[] adjustedAngles = correctBottomRow
-                ? CorrectBottomRow(pointArray, solidAngles)
+            double[] adjustedAngles = correctPolarRows
+                ? CorrectPolarRows(pointArray, solidAngles)
                 : solidAngles;
 
             double total = adjustedAngles.Sum();
@@ -65,11 +65,12 @@ namespace SphericalVoronoi
                 Weights = weights
             };
         }
-        private static double[] CorrectBottomRow(double[,] points, double[] solidAngles)
+        private static double[] CorrectPolarRows(double[,] points, double[] solidAngles)
         {
             double tol = 1e-8;
             int nPoints = points.GetLength(0);
 
+            // Group points by Z-elevation
             double[] roundedZ = new double[nPoints];
             for (int i = 0; i < nPoints; i++)
                 roundedZ[i] = Math.Round(points[i, 2] / tol) * tol;
@@ -88,39 +89,52 @@ namespace SphericalVoronoi
 
             double[] zLevels = zLevelDict.Keys.ToArray();
             var sorted = zLevels.Select((z, idx) => new { z, idx }).OrderBy(x => x.z).ToList();
-            if (sorted.Count < 2)
-                throw new Exception("Only one z-row found; cannot apply bottom correction.");
 
-            int bottomGroup = sorted[0].idx;
-            int rowAboveGroup = sorted[1].idx;
-
-            bool[] bottomIdx = zIdx.Select(id => id == bottomGroup).ToArray();
-            bool[] aboveIdx = zIdx.Select(id => id == rowAboveGroup).ToArray();
-
-            double desiredBottomTotal = solidAngles
-                .Where((a, i) => aboveIdx[i])
-                .Sum();
-
-            double currentBottomTotal = solidAngles
-                .Where((a, i) => bottomIdx[i])
-                .Sum();
+            if (sorted.Count < 3) return solidAngles;
 
             double[] adjusted = (double[])solidAngles.Clone();
-            int bottomCount = bottomIdx.Count(b => b);
 
-            if (currentBottomTotal == 0)
+            // Bottom row correction
+            int bottomGroup = sorted[0].idx;
+            int rowAboveGroup = sorted[1].idx;
+            bool[] bottomIdx = zIdx.Select(id => id == bottomGroup).ToArray();
+
+            // Check if the bottom is a truncated ring (multiple points) and not a perfect pole
+            if (bottomIdx.Count(b => b) > 1 && sorted[0].z > -0.999)
             {
-                double perPoint = desiredBottomTotal / bottomCount;
-                for (int i = 0; i < nPoints; i++)
-                    if (bottomIdx[i]) adjusted[i] = perPoint;
-            }
-            else
-            {
-                double scale = desiredBottomTotal / currentBottomTotal;
-                for (int i = 0; i < nPoints; i++)
-                    if (bottomIdx[i]) adjusted[i] *= scale;
+                bool[] aboveIdx = zIdx.Select(id => id == rowAboveGroup).ToArray();
+                double desiredBottomTotal = solidAngles.Where((a, i) => aboveIdx[i]).Sum();
+                double currentBottomTotal = solidAngles.Where((a, i) => bottomIdx[i]).Sum();
+
+                if (currentBottomTotal > 0)
+                {
+                    double scale = desiredBottomTotal / currentBottomTotal;
+                    for (int i = 0; i < nPoints; i++)
+                        if (bottomIdx[i]) adjusted[i] *= scale;
+                }
             }
 
+            // Top row correction
+            int topGroup = sorted.Last().idx;
+            int rowBelowGroup = sorted[sorted.Count - 2].idx;
+            bool[] topIdx = zIdx.Select(id => id == topGroup).ToArray();
+
+            // Check if the top is a truncated ring (multiple points) and not a perfect pole
+            if (topIdx.Count(b => b) > 1 && sorted.Last().z < 0.999)
+            {
+                bool[] belowIdx = zIdx.Select(id => id == rowBelowGroup).ToArray();
+                double desiredTopTotal = solidAngles.Where((a, i) => belowIdx[i]).Sum();
+                double currentTopTotal = solidAngles.Where((a, i) => topIdx[i]).Sum();
+
+                if (currentTopTotal > 0)
+                {
+                    double scale = desiredTopTotal / currentTopTotal;
+                    for (int i = 0; i < nPoints; i++)
+                        if (topIdx[i]) adjusted[i] *= scale;
+                }
+            }
+
+            // Final Renormalisation
             double origTotal = solidAngles.Sum();
             double newTotal = adjusted.Sum();
             double renorm = origTotal / newTotal;

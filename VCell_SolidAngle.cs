@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace SphericalVoronoi
+namespace SphericalVoronoiLib
 {
     public static class VoronoiSolidAngle
     {
