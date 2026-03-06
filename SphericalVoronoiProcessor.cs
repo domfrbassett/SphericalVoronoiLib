@@ -73,7 +73,7 @@ namespace SphericalVoronoiLib
             // Group points by Z-elevation
             double[] roundedZ = new double[nPoints];
             for (int i = 0; i < nPoints; i++)
-                roundedZ[i] = Math.Round(points[i, 2] / tol) * tol;
+                roundedZ[i] = Math.Round(points[i, 2], 6);
 
             var zLevelDict = new Dictionary<double, int>();
             int[] zIdx = new int[nPoints];
@@ -103,7 +103,13 @@ namespace SphericalVoronoiLib
             if (bottomIdx.Count(b => b) > 1 && sorted[0].z > -0.999)
             {
                 bool[] aboveIdx = zIdx.Select(id => id == rowAboveGroup).ToArray();
-                double desiredBottomTotal = solidAngles.Where((a, i) => aboveIdx[i]).Sum();
+
+                // Use Z-spacing (spherical zone height) for true solid angle scaling
+                double dzBoundary = Math.Abs(sorted[1].z - sorted[0].z);
+                double dzInterior = Math.Abs(sorted[2].z - sorted[1].z);
+                double zRatio = (dzInterior > 1e-8) ? (dzBoundary / dzInterior) : 1.0;
+
+                double desiredBottomTotal = solidAngles.Where((a, i) => aboveIdx[i]).Sum() * zRatio;
                 double currentBottomTotal = solidAngles.Where((a, i) => bottomIdx[i]).Sum();
 
                 if (currentBottomTotal > 0)
@@ -123,7 +129,13 @@ namespace SphericalVoronoiLib
             if (topIdx.Count(b => b) > 1 && sorted.Last().z < 0.999)
             {
                 bool[] belowIdx = zIdx.Select(id => id == rowBelowGroup).ToArray();
-                double desiredTopTotal = solidAngles.Where((a, i) => belowIdx[i]).Sum();
+
+                // Use Z-spacing (spherical zone height) for true solid angle scaling
+                double dzBoundary = Math.Abs(sorted.Last().z - sorted[sorted.Count - 2].z);
+                double dzInterior = Math.Abs(sorted[sorted.Count - 2].z - sorted[sorted.Count - 3].z);
+                double zRatio = (dzInterior > 1e-8) ? (dzBoundary / dzInterior) : 1.0;
+
+                double desiredTopTotal = solidAngles.Where((a, i) => belowIdx[i]).Sum() * zRatio;
                 double currentTopTotal = solidAngles.Where((a, i) => topIdx[i]).Sum();
 
                 if (currentTopTotal > 0)
