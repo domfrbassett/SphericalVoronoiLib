@@ -82,5 +82,11 @@ namespace SphericalVoronoiLib
             };
 
         private static double Dot(double[] u, double[] v) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+
+        public static double PolygonSolidAngle(List<SphericalPoint> verts)
+        {
+            if (verts == null || verts.Count < 3) return 0.0;
+            return OneCellSolidAngle(verts);
+        }
     }
 }
