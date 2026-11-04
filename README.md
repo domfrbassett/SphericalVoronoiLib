@@ -14,13 +14,13 @@ If anyone has access to the Mein (1993) paper, please get in touch. The universi
 
 ## Overview
 
-* Reads **source positions** from a SOFA file
-* Converts them to **normalised 3D unit vectors**
-* Computes **spherical Voronoi cells** using [MIConvexHull](https://github.com/DesignEngrLab/MIConvexHull)
+* Reads **source positions** from a SOFA file, or takes Cartesian or azimuth/elevation arrays
+* Converts them to **normalised 3D unit vectors**; repeated directions share one cell and results stay aligned with the input rows
+* Computes **spherical Voronoi cells** using [MIConvexHull](https://github.com/DesignEngrLab/MIConvexHull), including regular grids with co-circular points
 * Calculates **per-cell solid angles** (in steradians)
 * Calculates **weights proportional to solid angles**
-* Optionally **reweights the boundaries (recommended)** to compensate for disproportionately large cells caused by missing points in sparse regions
-* Performance: ~0.15 seconds.
+* Optionally **restricts the cells to an elevation band** (`zMin`/`zMax`, or degrees via `ComputeFromSpherical`), so grids with missing directions, e.g. below −45°, are not given disproportionately large cells. Clipped edges follow the latitude circle exactly
+* Performance: the 793-direction SONICOM grid takes a few hundredths of a second; 32,000 directions take under a second.
 
 ---
 
