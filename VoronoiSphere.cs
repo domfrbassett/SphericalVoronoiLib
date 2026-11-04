@@ -95,7 +95,7 @@ namespace SphericalVoronoiLib
                         var edgeArcs = new List<List<SphericalPoint>>(3);
                         for (int k = 0; k < 3; k++)
                         {
-                            edgeArcs.Add(HalfCircle(centers[k], GetColumn(dxyz, k), resolution));
+                            edgeArcs.Add(HalfCircle(centers[0], GetColumn(dxyz, k), resolution));
                         }
 
                         result.VoronoiBoundary = new List<List<SphericalPoint>>
@@ -126,15 +126,7 @@ namespace SphericalVoronoiLib
 
                         double[] s3 = new double[3];
                         for (int k = 0; k < 3; k++)
-                        {
-                            var dk = GetColumn(dxyz, k);
-                            var dkp1 = GetColumn(dxyz, (k + 1) % 3);
-
-                            var (A, B) = HalfCircleAB(dk, centers[0]);
-                            double num = -Dot(dkp1, B);
-                            double den = Dot(dkp1, A);
-                            s3[k] = 2 * Math.Atan2(num, den);
-                        }
+                            s3[k] = SphericalPolygonClipper.ClippedSolidAngle(result.VoronoiBoundary[k], inputPoints[k], null, null, false, false);
                         result.SolidAngles = s3;
 
                         var verts = new List<SphericalPoint>(centers.Count * 2);
@@ -156,10 +148,12 @@ namespace SphericalVoronoiLib
                         var faces = hull.Result.Faces.ToList();
 
                         int nt = faces.Count;
+                        var indexOf = new Dictionary<SphericalPoint, int>(tvertices.Count);
+                        for (int i = 0; i < tvertices.Count; i++) indexOf[tvertices[i]] = i;
                         var Tlist = new List<int[]>();
                         foreach (var f in faces)
                         {
-                            var idx = f.Vertices.Select(v => tvertices.IndexOf(v)).ToArray();
+                            var idx = f.Vertices.Select(v => indexOf[v]).ToArray();
                             if (idx.Length != 3) throw new Exception("Non-triangular face encountered");
                             Tlist.Add(new int[] { idx[0], idx[1], idx[2] });
                         }
@@ -232,6 +226,10 @@ namespace SphericalVoronoiLib
                         result.VoronoiBoundary = new List<List<SphericalPoint>>(npnts);
                         result.K = new List<List<int>>(npnts);
 
+                        var edgeIndexOf = new Dictionary<(int, int), int>(ne);
+                        for (int ii = 0; ii < ne; ii++)
+                            edgeIndexOf[(Math.Min(vid[ii, 0], vid[ii, 1]), Math.Max(vid[ii, 0], vid[ii, 1]))] = ii;
+
                         for (int k = 0; k < npnts; k++)
                         {
                             var edges = edgeOfCell[k].ToArray();
@@ -245,13 +243,6 @@ namespace SphericalVoronoiLib
                             var cycle = CyclingEdge(edges, vid);
                             cycle = OrientedEdge(cycle, result.Vertices, GetVectorColumn(xyz, k));
 
-                            var vs = new List<(int, int)>();
-                            for (int ii = 0; ii < ne; ii++)
-                            {
-                                var pair = (Math.Min(vid[ii, 0], vid[ii, 1]), Math.Max(vid[ii, 0], vid[ii, 1]));
-                                vs.Add(pair);
-                            }
-
                             var Klist = new List<int>();
                             var Xlist = new List<List<SphericalPoint>>();
                             for (int row = 0; row < cycle.GetLength(0); row++)
@@ -259,8 +250,7 @@ namespace SphericalVoronoiLib
                                 int a = cycle[row, 0];
                                 int b = cycle[row, 1];
                                 var key = (Math.Min(a, b), Math.Max(a, b));
-                                int idx = vs.FindIndex(z => z == key);
-                                if (idx < 0) throw new Exception("Edge lookup failed");
+                                if (!edgeIndexOf.TryGetValue(key, out int idx)) throw new Exception("Edge lookup failed");
                                 var arc = edgeArcs[idx];
 
                                 bool flip = (cycle[row, 0] != vid[idx, 0]);
@@ -346,21 +336,14 @@ namespace SphericalVoronoiLib
             }
             return G;
         }
-        private static (double[] A, double[] B) HalfCircleAB(double[] Pole, SphericalPoint center)
-        {
-            var pole = Normalize(Pole);
-            var A = center.ToArray(); A = Normalize(A);
-            var B = Cross(A, pole);
-            B = Normalize(B);
-            A = Normalize(A);
-            return (A, B);
-        }
         private static List<SphericalPoint> Arc(SphericalPoint A, SphericalPoint B, double resolution)
         {
             var a = A.ToArray(); var b = B.ToArray();
             double dotProd = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
             dotProd = Math.Max(-1.0, Math.Min(1.0, dotProd));
             double theta = Math.Acos(dotProd);
+            // Coincident Voronoi vertices (co-circular seeds, e.g. regular grids)
+            if (theta < 1e-12) return new List<SphericalPoint> { A, B };
             int nPoints = Math.Max((int)Math.Ceiling(theta / resolution), 2);
             var points = new List<SphericalPoint>(nPoints);
             for (int i = 0; i < nPoints; i++)
