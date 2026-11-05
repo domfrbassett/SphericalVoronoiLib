@@ -17,6 +17,8 @@ namespace SphericalVoronoiLib
         public int[] CellIndex { get; set; }
         /// <summary>Number of distinct directions.</summary>
         public int CellCount { get; set; }
+        /// <summary>|Σ full-sphere cell solid angles − 4π| (sr): a check on the tessellation, typically below 1e-12.</summary>
+        public double AreaClosureError { get; set; }
     }
 
     public static class SphericalVoronoiProcessor
@@ -74,6 +76,8 @@ namespace SphericalVoronoiLib
                 throw new ArgumentException("Input array is null or empty.", nameof(cartesianPositions));
             if (cartesianPositions.GetLength(1) != 3)
                 throw new ArgumentException("Input array must have three columns (x, y, z).", nameof(cartesianPositions));
+            if ((zMin.HasValue && double.IsNaN(zMin.Value)) || (zMax.HasValue && double.IsNaN(zMax.Value)))
+                throw new ArgumentException("zMin and zMax must be numbers.");
             if (zMin.HasValue && zMax.HasValue && zMin.Value > zMax.Value)
                 throw new ArgumentException("zMin must not exceed zMax.");
 
@@ -144,7 +148,8 @@ namespace SphericalVoronoiLib
                 SolidAngles = solidAngles,
                 Weights = weights,
                 CellIndex = cellIndex,
-                CellCount = m
+                CellCount = m,
+                AreaClosureError = VoronoiSphere.ClosureError(vor)
             };
         }
     }

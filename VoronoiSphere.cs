@@ -62,6 +62,9 @@ namespace SphericalVoronoiLib
                 xyz[2, i] = p[2] / nrm;
             }
 
+            if (npnts >= 3 && TryLunes(inputPoints, resolution, out var lunes))
+                return lunes;
+
             switch (npnts)
             {
                 case 1:
@@ -84,199 +87,247 @@ namespace SphericalVoronoiLib
                     result.SolidAngles = new double[] { 2 * Math.PI, 2 * Math.PI };
                     return result;
 
-                case 3:
-                    {
-                        var T = new int[,] { { 0, 1, 2 } };
-                        var centers = Center(xyz, T);
-
-                        var M = new double[,] { { -1, 1, 0 }, { 0, -1, 1 }, { 1, 0, -1 } };
-                        double[,] dxyz = Multiply(xyz, M);
-
-                        var edgeArcs = new List<List<SphericalPoint>>(3);
-                        for (int k = 0; k < 3; k++)
-                        {
-                            edgeArcs.Add(HalfCircle(centers[0], GetColumn(dxyz, k), resolution));
-                        }
-
-                        result.VoronoiBoundary = new List<List<SphericalPoint>>
-                        {
-                            new List<SphericalPoint>(),
-                            new List<SphericalPoint>(),
-                            new List<SphericalPoint>()
-                        };
-
-                        result.K = new List<List<int>>
-                        {
-                            new List<int> { 0, 1 },
-                            new List<int> { 1, 2 },
-                            new List<int> { 2, 0 }
-                        };
-
-                        for (int k = 0; k < 3; k++)
-                        {
-                            var arc1 = edgeArcs[k];
-                            var arc2 = edgeArcs[(k + 1) % 3];
-
-                            var combined = new List<SphericalPoint>(arc1);
-                            for (int i = arc2.Count - 2; i >= 1; i--)
-                                combined.Add(arc2[i]);
-
-                            result.VoronoiBoundary[k] = combined;
-                        }
-
-                        double[] s3 = new double[3];
-                        for (int k = 0; k < 3; k++)
-                            s3[k] = SphericalPolygonClipper.ClippedSolidAngle(result.VoronoiBoundary[k], inputPoints[k], null, null, false, false);
-                        result.SolidAngles = s3;
-
-                        var verts = new List<SphericalPoint>(centers.Count * 2);
-                        foreach (var c in centers)
-                        {
-                            verts.Add(c);
-                            verts.Add(new SphericalPoint(-c.X, -c.Y, -c.Z));
-                        }
-                        result.Vertices = verts;
-
-                        return result;
-                    }
-
                 default:
-                    {
-                        var tvertices = inputPoints.ToList();
-
-                        var hull = ConvexHull.Create<SphericalPoint, Face>(tvertices);
-                        var faces = hull.Result.Faces.ToList();
-
-                        int nt = faces.Count;
-                        var indexOf = new Dictionary<SphericalPoint, int>(tvertices.Count);
-                        for (int i = 0; i < tvertices.Count; i++) indexOf[tvertices[i]] = i;
-                        var Tlist = new List<int[]>();
-                        foreach (var f in faces)
-                        {
-                            var idx = f.Vertices.Select(v => indexOf[v]).ToArray();
-                            if (idx.Length != 3) throw new Exception("Non-triangular face encountered");
-                            Tlist.Add(new int[] { idx[0], idx[1], idx[2] });
-                        }
-
-                        var Tmat = new int[nt, 3];
-                        for (int i = 0; i < nt; i++)
-                            for (int j = 0; j < 3; j++)
-                                Tmat[i, j] = Tlist[i][j];
-
-                        var edgeList = new List<int[]>();
-                        for (int i = 0; i < nt; i++)
-                        {
-                            edgeList.Add(SortPair(Tmat[i, 0], Tmat[i, 1]));
-                            edgeList.Add(SortPair(Tmat[i, 1], Tmat[i, 2]));
-                            edgeList.Add(SortPair(Tmat[i, 2], Tmat[i, 0]));
-                        }
-
-                        var edgeDict = new Dictionary<(int, int), List<int>>();
-                        for (int i = 0; i < edgeList.Count; i++)
-                        {
-                            var key = (edgeList[i][0], edgeList[i][1]);
-                            if (!edgeDict.ContainsKey(key)) edgeDict[key] = new List<int>();
-                            edgeDict[key].Add(i);
-                        }
-
-                        foreach (var kv in edgeDict)
-                        {
-                            if (kv.Value.Count != 2)
-                                throw new Exception("Non-manifold edge detected. Check point configuration or numerical precision.");
-                        }
-
-                        int ne = edgeDict.Count;
-                        var allIds = Enumerable.Range(0, nt).SelectMany(i => new int[] { i, i, i }).ToArray();
-                        var vid = new int[ne, 2];
-                        var cellOfEdge = new int[ne, 2];
-                        var edgeKeys = edgeDict.Keys.ToList();
-
-                        for (int ei = 0; ei < edgeKeys.Count; ei++)
-                        {
-                            var rows = edgeDict[edgeKeys[ei]];
-                            int tri1 = allIds[rows[0]];
-                            int tri2 = allIds[rows[1]];
-                            vid[ei, 0] = tri1;
-                            vid[ei, 1] = tri2;
-
-                            var seedPair = edgeList[rows[0]];
-                            cellOfEdge[ei, 0] = seedPair[0];
-                            cellOfEdge[ei, 1] = seedPair[1];
-                        }
-
-                        var edgeOfCell = new List<int>[npnts];
-                        for (int i = 0; i < npnts; i++) edgeOfCell[i] = new List<int>();
-                        for (int e = 0; e < ne; e++)
-                        {
-                            edgeOfCell[cellOfEdge[e, 0]].Add(e);
-                            edgeOfCell[cellOfEdge[e, 1]].Add(e);
-                        }
-
-                        var Centers = Center(xyz, Tmat);
-                        result.Vertices = Centers;
-
-                        var edgeArcs = new List<List<SphericalPoint>>(ne);
-                        for (int e = 0; e < ne; e++)
-                        {
-                            var v0 = Centers[vid[e, 0]];
-                            var v1 = Centers[vid[e, 1]];
-                            edgeArcs.Add(Arc(v0, v1, resolution));
-                        }
-
-                        result.VoronoiBoundary = new List<List<SphericalPoint>>(npnts);
-                        result.K = new List<List<int>>(npnts);
-
-                        var edgeIndexOf = new Dictionary<(int, int), int>(ne);
-                        for (int ii = 0; ii < ne; ii++)
-                            edgeIndexOf[(Math.Min(vid[ii, 0], vid[ii, 1]), Math.Max(vid[ii, 0], vid[ii, 1]))] = ii;
-
-                        for (int k = 0; k < npnts; k++)
-                        {
-                            var edges = edgeOfCell[k].ToArray();
-                            if (edges.Length == 0)
-                            {
-                                result.VoronoiBoundary.Add(new List<SphericalPoint>());
-                                result.K.Add(new List<int>());
-                                continue;
-                            }
-
-                            var cycle = CyclingEdge(edges, vid);
-                            cycle = OrientedEdge(cycle, result.Vertices, GetVectorColumn(xyz, k));
-
-                            var Klist = new List<int>();
-                            var Xlist = new List<List<SphericalPoint>>();
-                            for (int row = 0; row < cycle.GetLength(0); row++)
-                            {
-                                int a = cycle[row, 0];
-                                int b = cycle[row, 1];
-                                var key = (Math.Min(a, b), Math.Max(a, b));
-                                if (!edgeIndexOf.TryGetValue(key, out int idx)) throw new Exception("Edge lookup failed");
-                                var arc = edgeArcs[idx];
-
-                                bool flip = (cycle[row, 0] != vid[idx, 0]);
-                                var arcCopy = new List<SphericalPoint>(arc);
-                                if (flip) arcCopy.Reverse();
-                                if (arcCopy.Count > 0) arcCopy.RemoveAt(arcCopy.Count - 1);
-                                Xlist.Add(arcCopy);
-                                Klist.Add(cycle[row, 0]);
-                            }
-
-                            var boundary = new List<SphericalPoint>();
-                            foreach (var arr in Xlist) boundary.AddRange(arr);
-
-                            result.VoronoiBoundary.Add(boundary);
-                            result.K.Add(Klist);
-                        }
-
-                        var ctrs = Enumerable.Range(0, npnts)
-                            .Select(i => new SphericalPoint(xyz[0, i], xyz[1, i], xyz[2, i]))
-                            .ToList();
-                        result.SolidAngles = VoronoiSolidAngle.Compute(result.Vertices, result.K, ctrs);
-
-                        return result;
-                    }
+                    return ComputeWithHullRetries(inputPoints, xyz, npnts, resolution);
             }
         }
+
+        // Convex-hull tolerances tried in turn until the cells close to 4π
+        private static readonly double[] HullTolerances = { 1e-12, 1e-10, 1e-14, 1e-8 };
+
+        private static VoronoiSphereResult ComputeWithHullRetries(List<SphericalPoint> inputPoints, double[,] xyz, int npnts, double resolution)
+        {
+            VoronoiSphereResult best = null;
+            double bestError = double.PositiveInfinity;
+            Exception lastError = null;
+            foreach (var tolerance in HullTolerances)
+            {
+                try
+                {
+                    var r = ComputeFromHull(inputPoints, xyz, npnts, resolution, tolerance);
+                    double err = ClosureError(r);
+                    if (err < 1e-9) return r;
+                    if (err < bestError) { best = r; bestError = err; }
+                }
+                catch (Exception e) { lastError = e; }
+            }
+            if (best != null) return best;
+            throw new InvalidOperationException("Spherical Voronoi tessellation failed for every hull tolerance.", lastError);
+        }
+
+        /// <summary>|Σ cell solid angles − 4π|; infinite if any cell is empty or not finite.</summary>
+        public static double ClosureError(VoronoiSphereResult r)
+        {
+            if (r == null || r.SolidAngles == null || r.SolidAngles.Length == 0) return double.PositiveInfinity;
+            double sum = 0;
+            foreach (var a in r.SolidAngles)
+            {
+                if (!(a > 0) || double.IsInfinity(a)) return double.PositiveInfinity;
+                sum += a;
+            }
+            return Math.Abs(sum - 4 * Math.PI);
+        }
+
+        private static VoronoiSphereResult ComputeFromHull(List<SphericalPoint> inputPoints, double[,] xyz, int npnts, double resolution, double tolerance)
+        {
+            var result = new VoronoiSphereResult();
+                var tvertices = inputPoints.ToList();
+
+                var hull = ConvexHull.Create<SphericalPoint, Face>(tvertices, tolerance);
+                if (hull.Result == null)
+                    throw new InvalidOperationException("Convex hull failed: " + hull.ErrorMessage);
+                var faces = hull.Result.Faces.ToList();
+
+                int nt = faces.Count;
+                var indexOf = new Dictionary<SphericalPoint, int>(tvertices.Count);
+                for (int i = 0; i < tvertices.Count; i++) indexOf[tvertices[i]] = i;
+                var Tlist = new List<int[]>();
+                foreach (var f in faces)
+                {
+                    var idx = f.Vertices.Select(v => indexOf[v]).ToArray();
+                    if (idx.Length != 3) throw new Exception("Non-triangular face encountered");
+                    Tlist.Add(new int[] { idx[0], idx[1], idx[2] });
+                }
+
+                var Tmat = new int[nt, 3];
+                for (int i = 0; i < nt; i++)
+                    for (int j = 0; j < 3; j++)
+                        Tmat[i, j] = Tlist[i][j];
+
+                var edgeList = new List<int[]>();
+                for (int i = 0; i < nt; i++)
+                {
+                    edgeList.Add(SortPair(Tmat[i, 0], Tmat[i, 1]));
+                    edgeList.Add(SortPair(Tmat[i, 1], Tmat[i, 2]));
+                    edgeList.Add(SortPair(Tmat[i, 2], Tmat[i, 0]));
+                }
+
+                var edgeDict = new Dictionary<(int, int), List<int>>();
+                for (int i = 0; i < edgeList.Count; i++)
+                {
+                    var key = (edgeList[i][0], edgeList[i][1]);
+                    if (!edgeDict.ContainsKey(key)) edgeDict[key] = new List<int>();
+                    edgeDict[key].Add(i);
+                }
+
+                foreach (var kv in edgeDict)
+                {
+                    if (kv.Value.Count != 2)
+                        throw new Exception("Non-manifold edge detected. Check point configuration or numerical precision.");
+                }
+
+                int ne = edgeDict.Count;
+                var allIds = Enumerable.Range(0, nt).SelectMany(i => new int[] { i, i, i }).ToArray();
+                var vid = new int[ne, 2];
+                var cellOfEdge = new int[ne, 2];
+                var edgeKeys = edgeDict.Keys.ToList();
+
+                for (int ei = 0; ei < edgeKeys.Count; ei++)
+                {
+                    var rows = edgeDict[edgeKeys[ei]];
+                    int tri1 = allIds[rows[0]];
+                    int tri2 = allIds[rows[1]];
+                    vid[ei, 0] = tri1;
+                    vid[ei, 1] = tri2;
+
+                    var seedPair = edgeList[rows[0]];
+                    cellOfEdge[ei, 0] = seedPair[0];
+                    cellOfEdge[ei, 1] = seedPair[1];
+                }
+
+                var edgeOfCell = new List<int>[npnts];
+                for (int i = 0; i < npnts; i++) edgeOfCell[i] = new List<int>();
+                for (int e = 0; e < ne; e++)
+                {
+                    edgeOfCell[cellOfEdge[e, 0]].Add(e);
+                    edgeOfCell[cellOfEdge[e, 1]].Add(e);
+                }
+
+                var Centers = Center(xyz, Tmat);
+                result.Vertices = Centers;
+
+                var edgeArcs = new List<List<SphericalPoint>>(ne);
+                for (int e = 0; e < ne; e++)
+                {
+                    var v0 = Centers[vid[e, 0]];
+                    var v1 = Centers[vid[e, 1]];
+                    edgeArcs.Add(Arc(v0, v1, resolution));
+                }
+
+                result.VoronoiBoundary = new List<List<SphericalPoint>>(npnts);
+                result.K = new List<List<int>>(npnts);
+
+                var edgeIndexOf = new Dictionary<(int, int), int>(ne);
+                for (int ii = 0; ii < ne; ii++)
+                    edgeIndexOf[(Math.Min(vid[ii, 0], vid[ii, 1]), Math.Max(vid[ii, 0], vid[ii, 1]))] = ii;
+
+                for (int k = 0; k < npnts; k++)
+                {
+                    var edges = edgeOfCell[k].ToArray();
+                    if (edges.Length == 0)
+                    {
+                        result.VoronoiBoundary.Add(new List<SphericalPoint>());
+                        result.K.Add(new List<int>());
+                        continue;
+                    }
+
+                    var cycle = CyclingEdge(edges, vid);
+                    cycle = OrientedEdge(cycle, result.Vertices, GetVectorColumn(xyz, k));
+
+                    var Klist = new List<int>();
+                    var Xlist = new List<List<SphericalPoint>>();
+                    for (int row = 0; row < cycle.GetLength(0); row++)
+                    {
+                        int a = cycle[row, 0];
+                        int b = cycle[row, 1];
+                        var key = (Math.Min(a, b), Math.Max(a, b));
+                        if (!edgeIndexOf.TryGetValue(key, out int idx)) throw new Exception("Edge lookup failed");
+                        var arc = edgeArcs[idx];
+
+                        bool flip = (cycle[row, 0] != vid[idx, 0]);
+                        var arcCopy = new List<SphericalPoint>(arc);
+                        if (flip) arcCopy.Reverse();
+                        if (arcCopy.Count > 0) arcCopy.RemoveAt(arcCopy.Count - 1);
+                        Xlist.Add(arcCopy);
+                        Klist.Add(cycle[row, 0]);
+                    }
+
+                    var boundary = new List<SphericalPoint>();
+                    foreach (var arr in Xlist) boundary.AddRange(arr);
+
+                    result.VoronoiBoundary.Add(boundary);
+                    result.K.Add(Klist);
+                }
+
+                var ctrs = Enumerable.Range(0, npnts)
+                    .Select(i => new SphericalPoint(xyz[0, i], xyz[1, i], xyz[2, i]))
+                    .ToList();
+                result.SolidAngles = VoronoiSolidAngle.Compute(result.Vertices, result.K, ctrs);
+
+                return result;
+        }
+        // Seeds on one circle give a flat hull; their cells are lunes about the circle's axis.
+        private static bool TryLunes(List<SphericalPoint> pts, double resolution, out VoronoiSphereResult result)
+        {
+            result = null;
+            int n = pts.Count;
+            var p = pts.Select(q => q.ToArray()).ToList();
+
+            int far = 0; double best = -1;
+            for (int i = 1; i < n; i++) { var d = Subtract(p[i], p[0]); double m = Dot(d, d); if (m > best) { best = m; far = i; } }
+            var e = Subtract(p[far], p[0]);
+            double[] axis = null; best = 0;
+            for (int i = 1; i < n; i++) { var c = Cross(e, Subtract(p[i], p[0])); double m = Dot(c, c); if (m > best) { best = m; axis = c; } }
+            if (axis == null) return false;
+            axis = Normalize(axis);
+            double offset = Dot(axis, p[0]);
+            foreach (var q in p) if (Math.Abs(Dot(axis, q) - offset) > 1e-10) return false;
+
+            var u = OrthonormalBasisVector(axis);
+            var w = Cross(axis, u);
+            var theta = p.Select(q => Math.Atan2(Dot(q, w), Dot(q, u))).ToArray();
+            var order = Enumerable.Range(0, n).OrderBy(i => theta[i]).ToArray();
+
+            result = new VoronoiSphereResult();
+            result.Vertices = new List<SphericalPoint> { new SphericalPoint(axis), new SphericalPoint(MultiplyScalar(axis, -1.0)) };
+            var boundary = new List<SphericalPoint>[n];
+            var area = new double[n];
+            const double TwoPi = 2 * Math.PI;
+            for (int r = 0; r < n; r++)
+            {
+                int i = order[r], prev = order[(r + n - 1) % n], next = order[(r + 1) % n];
+                double gPrev = theta[i] - theta[prev], gNext = theta[next] - theta[i];
+                if (gPrev <= 0) gPrev += TwoPi;
+                if (gNext <= 0) gNext += TwoPi;
+                area[i] = gPrev + gNext;
+
+                double a0 = theta[i] - gPrev / 2, a1 = theta[i] + gNext / 2;
+                var cell = Meridian(axis, u, w, a0, resolution);
+                var back = Meridian(axis, u, w, a1, resolution);
+                back.Reverse();
+                cell.AddRange(back.Skip(1).Take(back.Count - 2));
+                boundary[i] = cell;
+            }
+            result.VoronoiBoundary = boundary.ToList();
+            result.K = Enumerable.Range(0, n).Select(_ => new List<int> { 0, 1 }).ToList();
+            result.SolidAngles = area;
+            return true;
+        }
+
+        // Half great circle from axis to -axis through longitude a
+        private static List<SphericalPoint> Meridian(double[] axis, double[] u, double[] w, double a, double resolution)
+        {
+            int m = Math.Max((int)Math.Ceiling(Math.PI / resolution), 2);
+            var dir = Add(MultiplyScalar(u, Math.Cos(a)), MultiplyScalar(w, Math.Sin(a)));
+            var pts = new List<SphericalPoint>(m + 1);
+            for (int k = 0; k <= m; k++)
+            {
+                double t = Math.PI * k / m;
+                pts.Add(new SphericalPoint(Add(MultiplyScalar(axis, Math.Cos(t)), MultiplyScalar(dir, Math.Sin(t)))));
+            }
+            return pts;
+        }
+
         #region Helper geometry functions
         private static double[] GetVectorColumn(double[,] M, int col)
         {
@@ -285,19 +336,6 @@ namespace SphericalVoronoiLib
         private static double[] GetColumn(double[,] M, int col)
         {
             return new double[] { M[0, col], M[1, col], M[2, col] };
-        }
-        private static double[,] Multiply(double[,] A, double[,] B)
-        {
-            int r = A.GetLength(0), m = A.GetLength(1), c = B.GetLength(1);
-            var R = new double[r, c];
-            for (int i = 0; i < r; i++)
-                for (int j = 0; j < c; j++)
-                {
-                    double s = 0;
-                    for (int k = 0; k < m; k++) s += A[i, k] * B[k, j];
-                    R[i, j] = s;
-                }
-            return R;
         }
         private static int[] SortPair(int a, int b)
         {
@@ -316,22 +354,6 @@ namespace SphericalVoronoiLib
             {
                 double t = (double)i / (npnts - 1) * theta;
                 var p = Add(MultiplyScalar(A, Math.Cos(t)), MultiplyScalar(B, Math.Sin(t)));
-                G.Add(new SphericalPoint(p));
-            }
-            return G;
-        }
-        private static List<SphericalPoint> HalfCircle(SphericalPoint A, double[] Pole, double resolution)
-        {
-            var pole = Normalize(Pole);
-            var a = A.ToArray(); a = Normalize(a);
-            var B = Cross(a, pole);
-            double theta = Math.PI;
-            int npnts = Math.Max((int)Math.Ceiling(theta / resolution), 2);
-            var G = new List<SphericalPoint>(npnts);
-            for (int i = 0; i < npnts; i++)
-            {
-                double t = (double)i / (npnts - 1) * theta;
-                var p = Add(MultiplyScalar(a, Math.Cos(t)), MultiplyScalar(B, Math.Sin(t)));
                 G.Add(new SphericalPoint(p));
             }
             return G;
@@ -379,6 +401,7 @@ namespace SphericalVoronoiLib
             if (n == 0) return new double[] { 0, 0, 0 };
             return new double[] { v[0] / n, v[1] / n, v[2] / n };
         }
+        // Spherical circumcentre of each triangle: the unit normal of its plane, in vertex order
         private static List<SphericalPoint> Center(double[,] xyz, int[,] T)
         {
             int nt = T.GetLength(0);
@@ -388,33 +411,11 @@ namespace SphericalVoronoiLib
                 double[] A = GetColumn(xyz, T[i, 0]);
                 double[] B = GetColumn(xyz, T[i, 1]);
                 double[] C = GetColumn(xyz, T[i, 2]);
-                var AminusC = Subtract(A, C);
-                var BminusC = Subtract(B, C);
-                var A2B = MultiplyScalar(BminusC, Dot(AminusC, AminusC));
-                var B2A = MultiplyScalar(AminusC, Dot(BminusC, BminusC));
-                var AxB = Cross(AminusC, BminusC);
-                var P = Cross(Subtract(A2B, B2A), AxB);
-                double denom = 2 * Dot(AxB, AxB);
-                if (Math.Abs(denom) < 1e-15)
-                {
-                    var avg = Normalize(Add(Add(A, B), C));
-                    centers.Add(new SphericalPoint(avg));
-                    continue;
-                }
-                P = MultiplyScalar(P, 1.0 / denom);
-                var Pc = Add(C, P);
-                var nPc = Normalize(Pc);
-                double s = Dot(AxB, C);
-                if (s < 0) nPc = MultiplyScalar(nPc, -1.0);
-                centers.Add(new SphericalPoint(nPc));
+                var normal = Cross(Subtract(A, C), Subtract(B, C));
+                double len = Math.Sqrt(Dot(normal, normal));
+                centers.Add(len > 0 ? new SphericalPoint(MultiplyScalar(normal, 1.0 / len)) : new SphericalPoint(Normalize(Add(Add(A, B), C))));
             }
             return centers;
-        }
-        private static List<SphericalPoint> Center(double[,] xyz, List<int[]> Tlist)
-        {
-            var T = new int[Tlist.Count, 3];
-            for (int i = 0; i < Tlist.Count; i++) for (int j = 0; j < 3; j++) T[i, j] = Tlist[i][j];
-            return Center(xyz, T);
         }
         private static int[,] CyclingEdge(int[] edges, int[,] vertexes)
         {
