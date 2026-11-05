@@ -6,7 +6,7 @@
 
 * [54] M. Mein, Perception de l'information binaurale liée aux réflexions précoces dans une salle. Application à la simulation de la qualité acoustique, mémoire de DEA, Université du Maine, Le Mans, septembre 1993.
 
-If anyone has access to the Mein (1993) paper, please get in touch. The university itself does not and are equally interested. It would be good to find out if they actually proposed a weighting system.
+If anyone has access to the Mein (1993) paper, please get in touch. The university does not, and is equally interested. It would be good to find out if they actually proposed a weighting system.
 
 <img src="https://github.com/user-attachments/assets/71445dbc-008a-4846-9bbf-251517b538d5" width="700" />
 
@@ -23,6 +23,35 @@ If anyone has access to the Mein (1993) paper, please get in touch. The universi
 * Performance: the 793-direction SONICOM grid takes a few hundredths of a second; 32,000 directions take under a second.
 
 ---
+
+## Usage
+
+```csharp
+using SphericalVoronoiLib;
+
+// From a SOFA file, optionally restricted to a z band (z = sin elevation)
+VoronoiResult r = SphericalVoronoiProcessor.ComputeFromSofa("P0001_FreeFieldCompMinPhase_48kHz.sofa", zMin: -0.7071);
+
+// From azimuth/elevation in degrees (a third distance column is ignored)
+VoronoiResult s = SphericalVoronoiProcessor.ComputeFromSpherical(azElDeg, minElevationDeg: -45);
+
+// From Cartesian coordinates (any length; rows are normalised)
+VoronoiResult c = SphericalVoronoiProcessor.ComputeFromArray(xyz);
+```
+
+Every array in `VoronoiResult` has one entry per input row:
+
+| Member | Meaning |
+|---|---|
+| `Points` | Input directions as unit vectors |
+| `SolidAngles` | Cell solid angle in sr (rows with the same direction split their cell) |
+| `Weights` | `SolidAngles` normalised to sum to 1 over the sphere or band |
+| `CellIndex`, `CellCount` | Cell of each row, and the number of distinct directions |
+| `AreaClosureError` | \|Σ − 4π\| of the full tessellation, typically below 1e-12 sr |
+
+## Requirements
+
+The library targets .NET Framework 4.8. The tests in `tests/` need the .NET 8 SDK.
 
 ## Testing
 
