@@ -1,0 +1,22 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Build
+        run: dotnet build tests -c Release
+      - name: Test
+        working-directory: tests
+        run: dotnet run -c Release --no-build -- test data
+      - name: Stress
+        working-directory: tests
+        run: dotnet run -c Release --no-build -- stress

@@ -24,6 +24,18 @@ If anyone has access to the Mein (1993) paper, please get in touch. The universi
 
 ---
 
+## Testing
+
+`tests/` holds a console test suite that runs on every push (GitHub Actions): area closure to 4π, Monte Carlo cross-checks of individual cells, exact band clipping, duplicate handling, the SONICOM grid and its sparse masks, and adversarial inputs (polyhedra, points on one circle, jittered grids, clustered and hemispherical data, random rotations, fuzzed bands and grid subsets). `VoronoiResult.AreaClosureError` reports |Σ − 4π| for every tessellation.
+
+```
+cd tests
+dotnet run -c Release -- test data
+dotnet run -c Release -- stress
+```
+
+---
+
 ## Dependencies
 
 * **HDF.PInvoke** – for reading SOFA (HDF5) files
